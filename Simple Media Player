@@ -1,0 +1,187 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Simple_Media_Player
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        /* Using ArrayList because of resizing. */
+        private ArrayList paths = new ArrayList();
+        private ArrayList files = new ArrayList();
+
+        private bool index_changed = false;
+
+        private void play_song()
+        {
+            axWindowsMediaPlayer1.URL = paths[listBox1.SelectedIndex].ToString();
+        }
+
+        private void auto_play_song(int index)
+        {
+            
+            if (index == -1)
+            {
+                axWindowsMediaPlayer1.URL = paths[listBox1.TopIndex].ToString();
+            }
+            else
+            {
+                axWindowsMediaPlayer1.URL = paths[index].ToString();
+            }
+        }
+
+        private void choose_songs()
+        {
+            ArrayList old_songs = new ArrayList();
+
+            /* Keep track of previous loaded media files. */
+            if (listBox1.Items.Count > 0) 
+            {
+                for(int i = 0;i < listBox1.Items.Count;i++)
+                {
+                    old_songs.Add(listBox1.Items[i]);
+                }
+            }
+
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Multiselect = true;
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                /* Clear existing items */
+                listBox1.Items.Clear();
+
+                files.Clear();
+
+                /* Add the previous media files back. */
+                listBox1.Items.AddRange(old_songs.ToArray());
+
+                /* Add new media files. */
+                files.AddRange(openFileDialog.SafeFileNames);
+                paths.AddRange(openFileDialog.FileNames);
+
+                /* Display them to the listbox. */
+                for (int i = 0; i < files.Count; i++)
+                {
+                    listBox1.Items.Add(files[i]);
+                }
+            }
+        }
+
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            /* Automatically scale the form size (so its universal) */
+            System.Drawing.Rectangle workingRect = Screen.PrimaryScreen.WorkingArea;
+            this.Size = new System.Drawing.Size(Convert.ToInt32(0.5 * workingRect.Width), Convert.ToInt32(0.5*workingRect.Height));
+        }
+
+
+        /* Obtain all of the selected songs/files. */
+        private void selectSongsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int old_size = listBox1.Items.Count;
+
+            choose_songs();
+            
+            /* Only auto play song if its the first time adding. */
+            if (old_size == 0)
+            {
+                auto_play_song(-1);
+            }
+        }
+
+        /* Check if new song is selected. */
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            index_changed = true;
+        }
+
+        /* Play the music on song/file selected. */
+        private void listBox1_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (index_changed)
+            {
+                play_song();
+            }
+            index_changed = false;
+        }
+
+        private void getPathToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                String currentSong = listBox1.SelectedItem.ToString();
+
+                String currentSongPath = "";
+
+                for (int i = 0; i < paths.Count; i++)
+                {
+                    if (paths[i].ToString().Contains(currentSong))
+                    {
+                        currentSongPath = paths[i].ToString();
+                    }
+                }
+
+                /* Obtain audio/media file details. */
+                FileInfo currInfo = new FileInfo(currentSongPath);
+                String details = "FileName: " + Path.GetFileNameWithoutExtension(currInfo.Name) + "\n\nExtension: " + currInfo.Extension + "\n\nLocation: " + currInfo.Directory;
+
+                MessageBox.Show(details, "Song Details");
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("There are no songs available!", "Music Player Classic - Error");
+            }
+        }
+
+
+        /* Exits the application on click. */
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        /* Search audio on Youtube (based on file name). */
+        private void webBrowserToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int song_index = listBox1.SelectedIndex;
+
+            /* Remove any unnecessary symbols that might affect the youtube search. */
+            String song = paths[song_index].ToString().Replace("-", " ").Replace("_", " ");
+
+            String query = "https://www.youtube.com/results?search_query=" + Path.GetFileNameWithoutExtension(song).Trim();
+
+            System.Diagnostics.Process.Start(query);
+        }
+
+
+        /* Queue the songs for the auto play feature (not yet implemented) */
+        private Queue queue_songs()
+        {
+            Queue q = new Queue();
+            int currentSongIndex = listBox1.TopIndex;
+
+            for (int i = currentSongIndex; i < files.Count; i++)
+            {
+                q.Enqueue(i);
+            }
+
+            return q;
+        }
+    }
+}
